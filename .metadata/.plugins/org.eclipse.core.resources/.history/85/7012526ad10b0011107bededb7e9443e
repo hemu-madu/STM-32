@@ -1,0 +1,66 @@
+#include "stm32l476xx.h"
+
+char msg[] = "UART DMA BareMetal Working\r\n";
+
+void GPIO_Init(void);
+void USART2_Init(void);
+void DMA_Init(void);
+
+int main(void)
+{
+    GPIO_Init();
+    USART2_Init();
+    DMA_Init();
+
+    while (1)
+    {
+        DMA1_Channel7->CCR &= ~DMA_CCR_EN;
+
+        DMA1_Channel7->CMAR  = (uint32_t)msg;
+        DMA1_Channel7->CNDTR = sizeof(msg) - 1;
+
+        DMA1_Channel7->CCR |= DMA_CCR_EN;
+
+        while (!(DMA1->ISR & DMA_ISR_TCIF7));
+        DMA1->IFCR |= DMA_IFCR_CTCIF7;
+
+        for (volatile int i = 0; i < 1000000; i++);
+    }
+}
+
+void GPIO_Init(void)
+{
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+    // PA2 Alternate mode
+    GPIOA->MODER &= ~(3 << (2 * 2));
+    GPIOA->MODER |=  (2 << (2 * 2));
+
+    // AF7 for USART2_TX
+    GPIOA->AFR[0] &= ~(0xF << (4 * 2));
+    GPIOA->AFR[0] |=  (7 << (4 * 2));
+}
+
+void USART2_Init(void)
+{
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+    USART2->CR1 = 0;
+    USART2->BRR = 80000000 / 9600;
+
+
+    USART2->CR3 |= USART_CR3_DMAT;   // Enable DMA for TX
+    USART2->CR1 |= USART_CR1_TE;     // Enable TX
+    USART2->CR1 |= USART_CR1_UE;     // Enable USART
+}
+
+void DMA_Init(void)
+{
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+
+    DMA1_Channel7->CCR = 0;
+    DMA1_Channel7->CPAR = (uint32_t)&USART2->TDR;
+
+    DMA1_Channel7->CCR |= DMA_CCR_MINC;
+    DMA1_Channel7->CCR |= DMA_CCR_DIR;
+}

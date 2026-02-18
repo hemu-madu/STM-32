@@ -1,0 +1,4 @@
+../Core/Src/main.c:7:5:main	2
+../Core/Src/main.c:19:6:UART2_Init	1
+../Core/Src/main.c:46:6:UART2_Transmit	2
+../Core/Src/main.c:52:6:UART2_SendString	2

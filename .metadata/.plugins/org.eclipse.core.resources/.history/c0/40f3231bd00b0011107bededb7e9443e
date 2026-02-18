@@ -1,0 +1,81 @@
+#include "stm32l476xx.h"
+
+char msg[] = "UART DMA BareMetal Working\r\n";
+
+void UART2_Init(void);
+void DMA1_Init(void);
+
+int main(void)
+{
+    UART2_Init();
+    DMA1_Init();
+
+    while (1)
+    {
+        // Set memory address
+        DMA1_Channel7->CMAR = (uint32_t)msg;
+
+        // Set number of bytes
+        DMA1_Channel7->CNDTR = sizeof(msg) - 1;
+
+        // Enable DMA channel
+        DMA1_Channel7->CCR |= DMA_CCR_EN;
+
+        // Wait until transfer complete
+        while (!(DMA1->ISR & DMA_ISR_TCIF7));
+
+        // Clear transfer complete flag
+        DMA1->IFCR |= DMA_IFCR_CTCIF7;
+
+        // Disable channel
+        DMA1_Channel7->CCR &= ~DMA_CCR_EN;
+
+        for (volatile int i = 0; i < 1000000; i++);
+    }
+}
+
+void UART2_Init(void)
+{
+    // Enable clocks
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+    // PA2 alternate mode
+    GPIOA->MODER &= ~(3 << (2 * 2));
+    GPIOA->MODER |= (2 << (2 * 2));
+
+    // AF7
+    GPIOA->AFR[0] |= (7 << (4 * 2));
+
+    // Baud rate 9600 (16 MHz clock)
+    USART2->BRR = 16000000 / 9600;
+
+    // Enable TX
+    USART2->CR1 |= USART_CR1_TE;
+
+    // Enable DMA for TX
+    USART2->CR3 |= USART_CR3_DMAT;
+
+    // Enable USART
+    USART2->CR1 |= USART_CR1_UE;
+}
+
+void DMA1_Init(void)
+{
+    // Enable DMA1 clock
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+
+    // Disable channel first
+    DMA1_Channel7->CCR &= ~DMA_CCR_EN;
+
+    // Peripheral address (USART2->TDR)
+    DMA1_Channel7->CPAR = (uint32_t)&USART2->TDR;
+
+    // Memory increment
+    DMA1_Channel7->CCR |= DMA_CCR_MINC;
+
+    // Direction: Memory to Peripheral
+    DMA1_Channel7->CCR |= DMA_CCR_DIR;
+
+    // Enable transfer complete interrupt flag
+}

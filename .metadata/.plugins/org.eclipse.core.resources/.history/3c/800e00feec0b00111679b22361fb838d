@@ -1,0 +1,35 @@
+#include "stm32l476xx.h"
+
+volatile uint32_t msTicks = 0;
+
+void SysTick_Handler(void)
+{
+    msTicks++;   // Increment every 1ms
+}
+
+void delay_ms(uint32_t ms)
+{
+    uint32_t start = msTicks;
+    while ((msTicks - start) < ms);
+}
+
+int main(void)
+{
+    /* Enable GPIOA Clock */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+    /* Set PA5 as Output */
+    GPIOA->MODER &= ~(3 << (5 * 2));
+    GPIOA->MODER |=  (1 << (5 * 2));
+
+    /* Configure SysTick for 1ms interrupt */
+    SysTick->LOAD = (4000 - 1);      // 4 MHz / 1000 = 4000
+    SysTick->VAL  = 0;
+    SysTick->CTRL = 7;  // Enable SysTick, interrupt, use processor clock
+
+    while (1)
+    {
+        GPIOA->ODR ^= (1 << 5);  // Toggle LED
+        delay_ms(1000);          // 1 second delay
+    }
+}

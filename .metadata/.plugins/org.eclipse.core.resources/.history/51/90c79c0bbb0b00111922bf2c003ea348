@@ -1,0 +1,77 @@
+#include "stm32l476xx.h"
+
+void UART2_Init(void);
+void UART2_SendString_IT(char *str);
+
+volatile char *txBuffer = 0;
+volatile int txIndex = 0;
+
+int main(void)
+{
+    UART2_Init();
+
+    UART2_SendString_IT("UART Interrupt Working!\r\n");
+
+    while (1)
+    {
+    }
+}
+
+void UART2_Init(void)
+{
+    // Enable GPIOA clock
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+    // PA2, PA3 Alternate Function
+    GPIOA->MODER &= ~(3<<(2*2));
+    GPIOA->MODER |=  (2<<(2*2));
+
+    GPIOA->MODER &= ~(3<<(3*2));
+    GPIOA->MODER |=  (2<<(3*2));
+
+    // AF7
+    GPIOA->AFR[0] &= ~(0xF<<(4*2));
+    GPIOA->AFR[0] |=  (7<<(4*2));
+
+    GPIOA->AFR[0] &= ~(0xF<<(4*3));
+    GPIOA->AFR[0] |=  (7<<(4*3));
+
+    // Enable USART2 clock
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+    // Baud 9600 (16MHz)
+    USART2->BRR = 0x1A1;
+
+    // Enable TX
+    USART2->CR1 |= USART_CR1_TE;
+
+    // Enable USART
+    USART2->CR1 |= USART_CR1_UE;
+
+    // Enable NVIC
+    NVIC_EnableIRQ(USART2_IRQn);
+}
+
+void UART2_SendString_IT(char *str)
+{
+    txBuffer = str;
+    txIndex = 0;
+
+    // Enable TXE interrupt AFTER loading buffer
+    USART2->CR1 |= USART_CR1_TXEIE;
+}
+
+void USART2_IRQHandler(void)
+{
+    if ((USART2->ISR & USART_ISR_TXE) && (USART2->CR1 & USART_CR1_TXEIE))
+    {
+        if (txBuffer[txIndex] != '\0')
+        {
+            USART2->TDR = txBuffer[txIndex++];
+        }
+        else
+        {
+            USART2->CR1 &= ~USART_CR1_TXEIE;  // Disable interrupt
+        }
+    }
+}

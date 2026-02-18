@@ -1,0 +1,32 @@
+#include "main.h"
+#include <stdio.h>
+
+UART_HandleTypeDef huart2;
+
+void SystemClock_Config(void);
+static void MX_USART2_UART_Init(void);
+
+void ADC_Init(void);
+uint16_t ADC_Read(void);
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+  MX_USART2_UART_Init();
+
+  ADC_Init();
+
+  char msg[50];
+  uint16_t adc_val;
+
+  while (1)
+  {
+    adc_val = ADC_Read();
+
+    sprintf(msg, "ADC Value: %d\r\n", adc_val);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 100);
+
+    HAL_Delay(1000);
+  }
+}

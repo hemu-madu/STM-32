@@ -1,0 +1,75 @@
+#include "stm32l476xx.h"
+
+void UART2_Init(void);
+void UART2_SendString_IT(char *str);
+
+volatile char *txBuffer;
+volatile int txIndex = 0;
+
+int main(void)
+{
+    UART2_Init();
+
+    UART2_SendString_IT("UART Interrupt BareMetal - Hello\r\n");
+
+    while (1)
+    {
+        // main loop empty
+    }
+}
+
+void UART2_Init(void)
+{
+    // 1. Enable GPIOA clock
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+    // 2. PA2 & PA3 Alternate Function Mode
+    GPIOA->MODER &= ~(3<<(2*2));
+    GPIOA->MODER |=  (2<<(2*2));
+
+    GPIOA->MODER &= ~(3<<(3*2));
+    GPIOA->MODER |=  (2<<(3*2));
+
+    // 3. Select AF7 for USART2
+    GPIOA->AFR[0] |= (7<<(4*2));
+    GPIOA->AFR[0] |= (7<<(4*3));
+
+    // 4. Enable USART2 clock
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+    // 5. Set Baud Rate (9600 @ 16MHz)
+    USART2->BRR = 0x1A1;
+
+    // 6. Enable TX & RX
+    USART2->CR1 |= USART_CR1_TE;
+
+    // 7. Enable TXE Interrupt
+    USART2->CR1 |= USART_CR1_TXEIE;
+
+    // 8. Enable USART
+    USART2->CR1 |= USART_CR1_UE;
+
+    // 9. Enable NVIC Interrupt
+    NVIC_EnableIRQ(USART2_IRQn);
+}
+
+void UART2_SendString_IT(char *str)
+{
+    txBuffer = str;
+    txIndex = 0;
+}
+
+void USART2_IRQHandler(void)
+{
+    if (USART2->ISR & USART_ISR_TXE)
+    {
+        if (txBuffer[txIndex] != '\0')
+        {
+            USART2->TDR = txBuffer[txIndex++];
+        }
+        else
+        {
+            USART2->CR1 &= ~USART_CR1_TXEIE;  // Disable interrupt after done
+        }
+    }
+}

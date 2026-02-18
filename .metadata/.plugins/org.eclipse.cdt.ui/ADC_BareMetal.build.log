@@ -1,0 +1,10 @@
+15:43:00 **** Incremental Build of configuration Debug for project ADC_BareMetal ****
+make -j8 all 
+arm-none-eabi-size  ADC_BareMetal.elf 
+   text	   data	    bss	    dec	    hex	filename
+  15496	     92	   2036	  17624	   44d8	ADC_BareMetal.elf
+Finished building: default.size.stdout
+ 
+
+15:43:00 Build Finished. 0 errors, 0 warnings. (took 391ms)
+

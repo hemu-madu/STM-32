@@ -1,0 +1,28 @@
+#include "stm32l476xx.h"
+
+int main(void)
+{
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+    RCC->APB1ENR1 |= RCC_APB1ENR1_USART2EN;
+
+    // PA2 alternate mode
+    GPIOA->MODER &= ~(3 << (2 * 2));
+    GPIOA->MODER |=  (2 << (2 * 2));
+
+    GPIOA->AFR[0] &= ~(0xF << (4 * 2));
+    GPIOA->AFR[0] |=  (7 << (4 * 2));
+
+    // Use SystemCoreClock safely
+    USART2->BRR = SystemCoreClock / 9600;
+
+    USART2->CR1 |= USART_CR1_TE;
+    USART2->CR1 |= USART_CR1_UE;
+
+    while (1)
+    {
+        while (!(USART2->ISR & USART_ISR_TXE));
+        USART2->TDR = 'A';
+
+        for (volatile int i = 0; i < 500000; i++);
+    }
+}

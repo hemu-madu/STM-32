@@ -1,0 +1,45 @@
+#include "stm32l476xx.h"
+
+void delay(void)
+{
+    for(volatile int i=0; i<200000; i++);
+}
+
+int main(void)
+{
+    /* 1️⃣ Enable Clocks */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;   // Enable GPIOA
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;   // Enable GPIOC
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;  // Enable SYSCFG
+
+    /* 2️⃣ Configure PA5 as Output */
+    GPIOA->MODER &= ~(3 << (5*2));
+    GPIOA->MODER |=  (1 << (5*2));  // Output mode
+
+    /* 3️⃣ Configure PC13 as Input (default input mode) */
+    GPIOC->MODER &= ~(3 << (13*2));
+
+    /* 4️⃣ Configure EXTI13 */
+    SYSCFG->EXTICR[3] &= ~(0xF << 4);   // Clear EXTI13
+    SYSCFG->EXTICR[3] |=  (0x2 << 4);   // Port C selected
+
+    EXTI->IMR1  |= (1 << 13);  // Interrupt not masked
+    EXTI->FTSR1 |= (1 << 13);  // Falling edge trigger
+
+    /* 5️⃣ Enable NVIC */
+    NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+    while(1)
+    {
+        // Do nothing
+    }
+}
+
+void EXTI15_10_IRQHandler(void)
+{
+    if(EXTI->PR1 & (1 << 13))  // Check pending
+    {
+        GPIOA->ODR ^= (1 << 5);  // Toggle LED
+        EXTI->PR1 |= (1 << 13);  // Clear interrupt flag
+    }
+}
