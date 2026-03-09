@@ -1,0 +1,4 @@
+../Src/spi_driver.c:5:6:SPI_Init	4	static
+../Src/spi_driver.c:40:6:SPI1_IRQHandler	16	static
+../Src/spi_driver.c:54:6:SPI_Transmit	24	static
+../Src/spi_driver.c:68:9:SPI_Receive	4	static

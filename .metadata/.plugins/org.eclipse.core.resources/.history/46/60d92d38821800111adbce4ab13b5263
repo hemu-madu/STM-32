@@ -1,0 +1,370 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    user_diskio.c
+  * @brief   SPI SD Card DiskIO Driver for FatFS
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* USER CODE BEGIN DECL */
+#include <string.h>
+#include "ff_gen_drv.h"
+#include "main.h"
+
+/* Private define ------------------------------------------------------------*/
+#define SD_CS_LOW()   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET)
+#define SD_CS_HIGH()  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
+
+#define CMD0    0   // GO_IDLE_STATE
+#define CMD1    1   // SEND_OP_COND (MMC)
+#define CMD8    8   // SEND_IF_COND
+#define CMD9    9   // SEND_CSD
+#define CMD10   10  // SEND_CID
+#define CMD12   12  // STOP_TRANSMISSION
+#define CMD16   16  // SET_BLOCKLEN
+#define CMD17   17  // READ_SINGLE_BLOCK
+#define CMD18   18  // READ_MULTIPLE_BLOCK
+#define CMD23   23  // SET_BLOCK_COUNT (MMC)
+#define CMD24   24  // WRITE_BLOCK
+#define CMD25   25  // WRITE_MULTIPLE_BLOCK
+#define CMD41   41  // SEND_OP_COND (SDC)
+#define CMD55   55  // APP_CMD
+#define CMD58   58  // READ_OCR
+
+extern SPI_HandleTypeDef hspi1;
+
+static volatile DSTATUS Stat = STA_NOINIT;
+static uint8_t CardType;  // Card type flags: CT_MMC, CT_SD1, CT_SD2, CT_SDC, CT_BLOCK
+#define CT_MMC    0x01
+#define CT_SD1    0x02
+#define CT_SD2    0x04
+#define CT_SDC    (CT_SD1|CT_SD2)
+#define CT_BLOCK  0x08
+
+/* USER CODE END DECL */
+
+/* Private function prototypes -----------------------------------------------*/
+DSTATUS USER_initialize(BYTE pdrv);
+DSTATUS USER_status(BYTE pdrv);
+DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count);
+#if _USE_WRITE == 1
+DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count);
+#endif
+#if _USE_IOCTL == 1
+DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff);
+#endif
+
+Diskio_drvTypeDef USER_Driver = {
+    USER_initialize,
+    USER_status,
+    USER_read,
+#if _USE_WRITE
+    USER_write,
+#endif
+#if _USE_IOCTL == 1
+    USER_ioctl,
+#endif
+};
+
+/* ============================================================
+   Low-level SPI helpers
+   ============================================================ */
+
+static uint8_t SPI_TxRx(uint8_t data) {
+    uint8_t rx = 0;
+    HAL_SPI_TransmitReceive(&hspi1, &data, &rx, 1, 1000);
+    return rx;
+}
+
+static void SPI_Release(void) {
+    SPI_TxRx(0xFF);
+}
+
+/* Wait for SD card ready (returns 0xFF if ready, else timeout) */
+static uint8_t SD_WaitReady(void) {
+    uint8_t res;
+    uint32_t timeout = HAL_GetTick();
+    do {
+        res = SPI_TxRx(0xFF);
+    } while (res != 0xFF && (HAL_GetTick() - timeout) < 500);
+    return res;
+}
+
+/* Deselect SD card and release SPI bus */
+static void SD_Deselect(void) {
+    SD_CS_HIGH();
+    SPI_Release();
+}
+
+/* Select SD card and wait ready */
+static int SD_Select(void) {
+    SD_CS_LOW();
+    SPI_Release();
+    if (SD_WaitReady() == 0xFF) return 1;  // OK
+    SD_Deselect();
+    return 0;  // Timeout
+}
+
+/* Send command to SD card, returns R1 response */
+static uint8_t SD_SendCmd(uint8_t cmd, uint32_t arg) {
+    uint8_t crc, res;
+
+    // ACMD (prefix with CMD55)
+    if (cmd & 0x80) {
+        cmd &= 0x7F;
+        res = SD_SendCmd(CMD55, 0);
+        if (res > 1) return res;
+    }
+
+    // Select card
+    SD_Deselect();
+    if (!SD_Select()) return 0xFF;
+
+    // Send command packet
+    SPI_TxRx(0x40 | cmd);
+    SPI_TxRx((uint8_t)(arg >> 24));
+    SPI_TxRx((uint8_t)(arg >> 16));
+    SPI_TxRx((uint8_t)(arg >> 8));
+    SPI_TxRx((uint8_t)(arg));
+
+    // CRC
+    crc = 0x01;
+    if (cmd == CMD0) crc = 0x95;
+    if (cmd == CMD8) crc = 0x87;
+    SPI_TxRx(crc);
+
+    // Skip stuff byte for CMD12
+    if (cmd == CMD12) SPI_TxRx(0xFF);
+
+    // Wait for response (max 10 retries)
+    uint8_t n = 10;
+    do {
+        res = SPI_TxRx(0xFF);
+    } while ((res & 0x80) && --n);
+
+    return res;
+}
+
+/* Receive a data block from SD card */
+static int SD_RxDataBlock(BYTE *buff, UINT btr) {
+    uint8_t token;
+    uint32_t timeout = HAL_GetTick();
+
+    // Wait for data token
+    do {
+        token = SPI_TxRx(0xFF);
+    } while (token == 0xFF && (HAL_GetTick() - timeout) < 200);
+
+    if (token != 0xFE) return 0;  // Invalid token
+
+    // Receive data
+    do {
+        *buff++ = SPI_TxRx(0xFF);
+        *buff++ = SPI_TxRx(0xFF);
+    } while (btr -= 2);
+
+    SPI_TxRx(0xFF);  // Discard CRC
+    SPI_TxRx(0xFF);
+
+    return 1;
+}
+
+/* Transmit a data block to SD card */
+#if _USE_WRITE == 1
+static int SD_TxDataBlock(const BYTE *buff, BYTE token) {
+    uint8_t resp;
+    uint16_t i;
+
+    if (SD_WaitReady() != 0xFF) return 0;
+
+    SPI_TxRx(token);  // Send token
+
+    if (token != 0xFD) {  // Not STOP token
+        // Send 512 bytes
+        for (i = 0; i < 512; i++) {
+            SPI_TxRx(*buff++);
+        }
+        SPI_TxRx(0xFF);  // Dummy CRC
+        SPI_TxRx(0xFF);
+
+        // Receive data response
+        resp = SPI_TxRx(0xFF);
+        if ((resp & 0x1F) != 0x05) return 0;  // Write rejected
+    }
+    return 1;
+}
+#endif
+
+/* ============================================================
+   FatFS DiskIO Functions
+   ============================================================ */
+
+DSTATUS USER_initialize(BYTE pdrv) {
+    uint8_t n, cmd, ty, ocr[4];
+
+    if (pdrv) return STA_NOINIT;
+
+    // Send 80 dummy clocks with CS HIGH to wake up SD card
+    SD_CS_HIGH();
+    for (n = 10; n; n--) SPI_TxRx(0xFF);
+
+    ty = 0;
+
+    // Put SD card into SPI mode (CMD0)
+    if (SD_SendCmd(CMD0, 0) == 1) {
+        uint32_t timeout = HAL_GetTick();
+
+        // Check SD version
+        if (SD_SendCmd(CMD8, 0x1AA) == 1) {
+            // SD v2
+            for (n = 0; n < 4; n++) ocr[n] = SPI_TxRx(0xFF);
+            if (ocr[2] == 0x01 && ocr[3] == 0xAA) {
+                // Wait for ready
+                while ((HAL_GetTick() - timeout) < 1000 && SD_SendCmd(0x80 | CMD41, 1UL << 30));
+                // Check CCS bit
+                if ((HAL_GetTick() - timeout) < 1000 && SD_SendCmd(CMD58, 0) == 0) {
+                    for (n = 0; n < 4; n++) ocr[n] = SPI_TxRx(0xFF);
+                    ty = (ocr[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;
+                }
+            }
+        } else {
+            // SD v1 or MMC
+            if (SD_SendCmd(0x80 | CMD41, 0) <= 1) {
+                ty = CT_SD1;
+                cmd = 0x80 | CMD41;  // ACMD41 for SD
+            } else {
+                ty = CT_MMC;
+                cmd = CMD1;  // CMD1 for MMC
+            }
+            // Wait for ready
+            while ((HAL_GetTick() - timeout) < 1000 && SD_SendCmd(cmd, 0));
+            // Set block size to 512
+            if ((HAL_GetTick() - timeout) >= 1000 || SD_SendCmd(CMD16, 512) != 0)
+                ty = 0;
+        }
+    }
+
+    CardType = ty;
+    SD_Deselect();
+
+    if (ty) {
+        Stat &= ~STA_NOINIT;  // Card initialized
+    }
+
+    return Stat;
+}
+
+DSTATUS USER_status(BYTE pdrv) {
+    if (pdrv) return STA_NOINIT;
+    return Stat;
+}
+
+DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count) {
+    if (pdrv || !count) return RES_PARERR;
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+
+    // Convert sector to byte address for non-block cards
+    if (!(CardType & CT_BLOCK)) sector *= 512;
+
+    if (count == 1) {
+        // Single block read
+        if (SD_SendCmd(CMD17, sector) == 0 && SD_RxDataBlock(buff, 512))
+            count = 0;
+    } else {
+        // Multiple block read
+        if (SD_SendCmd(CMD18, sector) == 0) {
+            do {
+                if (!SD_RxDataBlock(buff, 512)) break;
+                buff += 512;
+            } while (--count);
+            SD_SendCmd(CMD12, 0);  // Stop transmission
+        }
+    }
+
+    SD_Deselect();
+    return count ? RES_ERROR : RES_OK;
+}
+
+#if _USE_WRITE == 1
+DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count) {
+    if (pdrv || !count) return RES_PARERR;
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+    if (Stat & STA_PROTECT) return RES_WRPRT;
+
+    if (!(CardType & CT_BLOCK)) sector *= 512;
+
+    if (count == 1) {
+        // Single block write
+        if (SD_SendCmd(CMD24, sector) == 0 && SD_TxDataBlock(buff, 0xFE))
+            count = 0;
+    } else {
+        // Multiple block write
+        if (CardType & CT_SDC) SD_SendCmd(0x80 | CMD23, count);
+        if (SD_SendCmd(CMD25, sector) == 0) {
+            do {
+                if (!SD_TxDataBlock(buff, 0xFC)) break;
+                buff += 512;
+            } while (--count);
+            if (!SD_TxDataBlock(0, 0xFD)) count = 1;  // STOP_TRAN token
+        }
+    }
+
+    SD_Deselect();
+    return count ? RES_ERROR : RES_OK;
+}
+#endif
+
+#if _USE_IOCTL == 1
+DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff) {
+    DRESULT res;
+    BYTE n, csd[16];
+    DWORD csize;
+
+    if (pdrv) return RES_PARERR;
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
+
+    res = RES_ERROR;
+
+    switch (cmd) {
+        case CTRL_SYNC:
+            if (SD_Select()) {
+                SD_Deselect();
+                res = RES_OK;
+            }
+            break;
+
+        case GET_SECTOR_COUNT:
+            if ((SD_SendCmd(CMD9, 0) == 0) && SD_RxDataBlock(csd, 16)) {
+                if ((csd[0] >> 6) == 1) {
+                    // SD v2
+                    csize = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
+                    *(DWORD*)buff = csize << 10;
+                } else {
+                    // SD v1 / MMC
+                    n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
+                    csize = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
+                    *(DWORD*)buff = csize << (n - 9);
+                }
+                res = RES_OK;
+            }
+            break;
+
+        case GET_SECTOR_SIZE:
+            *(WORD*)buff = 512;
+            res = RES_OK;
+            break;
+
+        case GET_BLOCK_SIZE:
+            *(DWORD*)buff = 512;
+            res = RES_OK;
+            break;
+
+        default:
+            res = RES_PARERR;
+    }
+
+    SD_Deselect();
+    return res;
+}
+#endif

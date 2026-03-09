@@ -1,0 +1,117 @@
+#include "stm32l476xx.h"
+#include "rcc.h"
+#include "gpio.h"
+#include "uart.h"
+#include "spi.h"
+#include "sdcard.h"
+#include "ff.h"
+#include <stdio.h>
+#include <string.h>
+
+/* FATFS objects */
+FATFS fs;
+FIL file;
+FRESULT fres;
+UINT bw, br;
+
+/* Simple delay */
+void delay(void)
+{
+    for(volatile int i=0; i<1000000; i++);
+}
+
+int main(void)
+{
+    char buffer[64];
+
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+    SPI1_Init();
+
+    UART2_Print("SD Card Logger Test\r\n");
+
+    /* ---------------- MOUNT ---------------- */
+    UART2_Print("Calling f_mount...\r\n");
+
+    fres = f_mount(&fs, "", 1);
+
+    if(fres != FR_OK)
+    {
+        UART2_Print("Mount Failed! Code: ");
+
+        char buf[10];
+        sprintf(buf,"%d\r\n",fres);
+        UART2_Print(buf);
+
+        while(1);
+    }
+
+    UART2_Print("Mount OK\r\n");
+
+    /* ---------------- FILE CREATE TEST ---------------- */
+    UART2_Print("Opening file...\r\n");
+
+    fres = f_open(&file, "templogs.txt", FA_CREATE_ALWAYS | FA_WRITE);
+
+    if(fres != FR_OK)
+    {
+        UART2_Print("File Open Failed!\r\n");
+        while(1);
+    }
+
+    UART2_Print("File Open OK\r\n");
+
+    /* Write Initial Data */
+    fres = f_write(&file, "STM32 SD Test OK\r\n", 19, &bw);
+
+    if(fres != FR_OK)
+    {
+        UART2_Print("Write Failed!\r\n");
+        while(1);
+    }
+
+    UART2_Print("Write OK\r\n");
+
+    f_close(&file);
+
+    UART2_Print("File Closed\r\n");
+
+    /* ================= BUTTON LOOP ================= */
+    while(1)
+    {
+        /* USER button is ACTIVE LOW */
+        if((GPIOC->IDR & (1 << 13)) == 0)
+        {
+            delay();   // debounce
+
+            if((GPIOC->IDR & (1 << 13)) == 0)
+            {
+                UART2_Print("\r\n--- FILE CONTENT ---\r\n");
+
+                if(f_open(&file, "templog.txt", FA_READ) == FR_OK)
+                {
+                    while(1)
+                    {
+                        if(f_read(&file, buffer, sizeof(buffer)-1, &br) != FR_OK || br == 0)
+                            break;
+
+                        buffer[br] = '\0';
+                        UART2_Print(buffer);
+                    }
+
+                    f_close(&file);
+                }
+                else
+                {
+                    UART2_Print("Read Open Failed\r\n");
+                }
+
+                UART2_Print("\r\n--- END ---\r\n");
+
+                /* Wait until button released */
+                while((GPIOC->IDR & (1 << 13)) == 0);
+            }
+        }
+    }
+}

@@ -1,0 +1,6 @@
+../Core/Src/lcd.c:12:6:LCD_Enable	1
+../Core/Src/lcd.c:20:6:LCD_Send4Bit	1
+../Core/Src/lcd.c:28:6:LCD_Command	1
+../Core/Src/lcd.c:39:6:LCD_Char	1
+../Core/Src/lcd.c:50:6:LCD_String	2
+../Core/Src/lcd.c:55:6:LCD_Init	1

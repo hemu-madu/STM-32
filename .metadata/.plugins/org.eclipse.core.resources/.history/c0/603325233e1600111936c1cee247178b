@@ -1,0 +1,96 @@
+#include "stm32l476xx.h"
+#include "rcc.h"
+#include "gpio.h"
+#include "uart.h"
+#include "spi.h"
+#include "sdcard.h"
+#include "i2c.h"
+#include "bme280.h"
+#include "ff.h"
+#include <stdio.h>
+#include <string.h>
+
+/* FATFS objects */
+static FATFS fs;
+static FIL file;
+
+/* Simple delay */
+void delay_ms(uint32_t ms)
+{
+    for(uint32_t j = 0; j < ms; j++)
+        for(volatile uint32_t i = 0; i < 8000; i++);
+}
+
+int main(void)
+{
+    char buffer[64];
+    UINT bw, br;
+
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+    SPI1_Init();
+    I2C1_Init();
+
+    UART2_Print("Temperature Logger Start\r\n");
+
+    /* -------- Mount SD Card -------- */
+    if(f_mount(&fs, "", 1) != FR_OK)
+    {
+        UART2_Print("Mount Failed\r\n");
+        while(1);
+    }
+
+    UART2_Print("Mount OK\r\n");
+
+    /* -------- Initialize BME280 -------- */
+    BME280_Init();
+    BME280_ReadCalibration();
+
+    while(1)
+    {
+        /* Read temperature */
+        float temp = BME280_ReadTemperature();
+
+        /* Format string */
+        sprintf(buffer, "Temp: %.2f C\r\n", temp);
+
+        /* -------- Append to temp.txt -------- */
+        if(f_open(&file, "temp.txt", FA_OPEN_APPEND | FA_WRITE) == FR_OK)
+        {
+            f_write(&file, buffer, strlen(buffer), &bw);
+            f_close(&file);
+        }
+
+        /* -------- If button pressed, print file -------- */
+        if(Button_Pressed())   // From gpio.c (ACTIVE LOW)
+        {
+            delay_ms(50);   // debounce
+
+            if(Button_Pressed())
+            {
+                if(f_open(&file, "temp.txt", FA_READ) == FR_OK)
+                {
+                    UART2_Print("\r\n--- FILE DATA ---\r\n");
+
+                    while(1)
+                    {
+                        if(f_read(&file, buffer, sizeof(buffer)-1, &br) != FR_OK || br == 0)
+                            break;
+
+                        buffer[br] = '\0';
+                        UART2_Print(buffer);
+                    }
+
+                    UART2_Print("\r\n--- END ---\r\n");
+
+                    f_close(&file);
+                }
+
+                while(Button_Pressed());  // wait until released
+            }
+        }
+
+        delay_ms(1000);
+    }
+}

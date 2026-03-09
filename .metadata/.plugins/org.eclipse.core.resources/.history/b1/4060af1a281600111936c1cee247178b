@@ -1,0 +1,72 @@
+#include "logger.h"
+#include "ff.h"
+#include "uart.h"
+#include <stdio.h>
+#include <string.h>
+
+static FATFS fs;
+static FIL file;
+
+void Logger_Init(void)
+{
+    if(f_mount(&fs, "", 1) != FR_OK)
+    {
+        UART2_Print("Mount Failed\r\n");
+        while(1);
+    }
+
+    UART2_Print("Mount OK\r\n");
+}
+
+void Logger_LogTemperature(float temp)
+{
+    UART2_Print("Logger called\r\n");
+
+    char buffer[64];
+    UINT bw;
+
+    sprintf(buffer, "Temp: %.2f C\r\n", temp);
+
+    FRESULT res = f_open(&file, "temp.txt", FA_OPEN_APPEND | FA_WRITE);
+
+    if(res != FR_OK)
+    {
+        UART2_Print("Open failed\r\n");
+        return;
+    }
+
+    UART2_Print("Open OK\r\n");
+
+    res = f_write(&file, buffer, strlen(buffer), &bw);
+
+    if(res != FR_OK)
+        UART2_Print("Write failed\r\n");
+    else
+        UART2_Print("Write OK\r\n");
+
+    f_close(&file);
+}
+
+void Logger_PrintFile(void)
+{
+    char buf[64];
+    UINT br;
+
+    if(f_open(&file, "temp.txt", FA_READ) != FR_OK)
+        return;
+
+    UART2_Print("\r\n--- FILE DATA ---\r\n");
+
+    while(1)
+    {
+        if(f_read(&file, buf, sizeof(buf)-1, &br) != FR_OK || br==0)
+            break;
+
+        buf[br] = 0;
+        UART2_Print(buf);
+    }
+
+    UART2_Print("\r\n--- END ---\r\n");
+
+    f_close(&file);
+}

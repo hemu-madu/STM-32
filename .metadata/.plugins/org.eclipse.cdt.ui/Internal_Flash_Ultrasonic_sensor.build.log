@@ -1,0 +1,10 @@
+14:36:36 **** Incremental Build of configuration Debug for project Internal_Flash_Ultrasonic_sensor ****
+make -j8 all 
+arm-none-eabi-size  Internal_Flash_Ultrasonic_sensor.elf 
+   text	   data	    bss	    dec	    hex	filename
+  32212	    500	   2116	  34828	   880c	Internal_Flash_Ultrasonic_sensor.elf
+Finished building: default.size.stdout
+ 
+
+14:36:37 Build Finished. 0 errors, 0 warnings. (took 776ms)
+

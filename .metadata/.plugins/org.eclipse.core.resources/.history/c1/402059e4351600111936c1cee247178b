@@ -1,0 +1,31 @@
+#include "stm32l476xx.h"
+#include "rcc.h"
+#include "gpio.h"
+#include "uart.h"
+
+void delay_ms(uint32_t ms)
+{
+    for(uint32_t j=0;j<ms;j++)
+        for(volatile uint32_t i=0;i<8000;i++);
+}
+
+int main(void)
+{
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+
+    UART2_Print("Button Test Start\r\n");
+    char dbg[50];
+    sprintf(dbg, "IDR=0x%08lX\r\n", GPIOC->IDR);
+    UART2_Print(dbg);
+    while(1)
+    {
+        if(GPIOC->IDR & (1 << 13))
+            UART2_Print("HIGH\r\n");
+        else
+            UART2_Print("LOW\r\n");
+
+        delay_ms(500);
+    }
+}

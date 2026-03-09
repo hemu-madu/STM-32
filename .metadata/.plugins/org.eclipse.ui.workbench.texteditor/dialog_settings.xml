@@ -2,4 +2,20 @@
 <section name="Workbench">
 	<item key="hasShownOverlayPopupBefore" value="true"/>
 	<item key="replaceBarOpen" value="false"/>
+	<list key="searchhistory">
+		<item value="sd_cs_high"/>
+		<item value="sd_cs"/>
+		<item value="prescaller"/>
+		<item value="DSTATUS USER_initialize"/>
+		<item value="gpio_init"/>
+		<item value="SPI_BAUDRATEPRESCALER_128"/>
+		<item value="SPI_BAUDRATEPRESCALER_"/>
+		<item value="while(spi"/>
+		<item value="#define FF_US_LFN"/>
+		<item value="FF_MAX_SS "/>
+		<item value="systemcoreclock"/>
+		<item value="usa"/>
+		<item value="us"/>
+		<item value="usart"/>
+	</list>
 </section>

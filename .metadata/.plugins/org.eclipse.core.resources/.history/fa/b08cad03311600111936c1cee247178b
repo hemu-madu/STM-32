@@ -1,0 +1,42 @@
+#include "rcc.h"
+#include "gpio.h"
+#include "uart.h"
+#include "spi.h"
+#include "sdcard.h"
+#include "i2c.h"
+#include "bme280.h"
+#include "logger.h"
+#include <stdio.h>
+
+void delay_ms(uint32_t ms)
+{
+    for(uint32_t j = 0; j < ms; j++)
+        for(volatile uint32_t i = 0; i < 8000; i++);
+}
+
+int main(void)
+{
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+    SPI1_Init();
+    I2C1_Init();
+
+    UART2_Print("Temperature Logger Start\r\n");
+
+    /* SD Mount */
+    Logger_Init();
+
+    /* Sensor Init */
+    BME280_Init();
+    BME280_ReadCalibration();
+
+    while(1)
+    {
+        if(Button_Pressed())
+        {
+            UART2_Print("Button Pressed\r\n");
+            delay_ms(300);
+        }
+    }
+}

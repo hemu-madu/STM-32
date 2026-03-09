@@ -1,0 +1,62 @@
+#include "sdcard.h"
+#include "spi.h"
+#include "gpio.h"
+
+#define CMD24 24
+
+uint8_t SD_WriteBlock(uint32_t sector, uint8_t *buffer)
+{
+    uint8_t response;
+
+    /* Send CMD24 */
+    SD_CS_LOW();
+
+    SPI1_Transfer(0x40 | CMD24);
+    SPI1_Transfer(sector >> 24);
+    SPI1_Transfer(sector >> 16);
+    SPI1_Transfer(sector >> 8);
+    SPI1_Transfer(sector);
+    SPI1_Transfer(0xFF);
+
+    /* Wait for response */
+    for(int i=0;i<8;i++)
+    {
+        response = SPI1_Transfer(0xFF);
+        if(!(response & 0x80))
+            break;
+    }
+
+    if(response != 0x00)
+    {
+        SD_CS_HIGH();
+        return 1;
+    }
+
+    /* Send Data Token */
+    SPI1_Transfer(0xFE);
+
+    /* Send 512 bytes */
+    for(int i=0;i<512;i++)
+        SPI1_Transfer(buffer[i]);
+
+    /* Dummy CRC */
+    SPI1_Transfer(0xFF);
+    SPI1_Transfer(0xFF);
+
+    /* Wait for data response */
+    response = SPI1_Transfer(0xFF);
+
+    if((response & 0x1F) != 0x05)
+    {
+        SD_CS_HIGH();
+        return 2;
+    }
+
+    /* Wait until not busy */
+    while(SPI1_Transfer(0xFF) == 0x00);
+
+    SD_CS_HIGH();
+    SPI1_Transfer(0xFF);
+
+    return 0;
+}

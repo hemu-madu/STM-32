@@ -1,2 +1,7 @@
 1771319085087	Delete resource 'UART_DMA_BareMetal/Core/Src/stm32l4xx_hal_msp.c'
 1771319090488	Delete resource 'UART_DMA_BareMetal/Core/Src/stm32l4xx_it.c'
+1771587197942	Delete resource 'I2C_Driver'
+1771587906968	Delete resource 'I2C_Driver/Core/Inc/stm32f4xx_hal_conf.h'
+1771587909522	Delete resource 'I2C_Driver/Core/Inc/stm32f4xx_it.h'
+1771587916504	Delete resource 'I2C_Driver/Core/Src/stm32f4xx_hal_msp.c'
+1771588191477	Delete resource 'I2C_Driver'

@@ -1,0 +1,3 @@
+../Core/Src/bme280.c:15:6:BME280_Init	16	static
+../Core/Src/bme280.c:37:6:BME280_ReadCalibration	16	static
+../Core/Src/bme280.c:54:7:BME280_ReadTemperature	32	static

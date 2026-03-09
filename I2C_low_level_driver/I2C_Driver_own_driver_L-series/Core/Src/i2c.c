@@ -1,0 +1,53 @@
+#include "stm32l476xx.h"
+#include "i2c.h"
+
+void I2C1_Init(void)
+{
+    I2C1->CR1 &= ~I2C_CR1_PE;
+    I2C1->TIMINGR = 0x00303D5B;   // For 4MHz clock
+    I2C1->CR1 |= I2C_CR1_PE;
+}
+
+uint8_t I2C_ReadReg(uint8_t dev, uint8_t reg)
+{
+    uint8_t data;
+
+    while(I2C1->ISR & I2C_ISR_BUSY);
+
+    I2C1->CR2 = (dev<<1) | (1<<16);
+    I2C1->CR2 |= I2C_CR2_START;
+
+    while(!(I2C1->ISR & I2C_ISR_TXIS));
+    I2C1->TXDR = reg;
+
+    while(!(I2C1->ISR & I2C_ISR_TC));
+
+    I2C1->CR2 = (dev<<1) | (1<<16) | I2C_CR2_RD_WRN | I2C_CR2_AUTOEND;
+    I2C1->CR2 |= I2C_CR2_START;
+
+    while(!(I2C1->ISR & I2C_ISR_RXNE));
+    data = I2C1->RXDR;
+
+    while(!(I2C1->ISR & I2C_ISR_STOPF));
+    I2C1->ICR |= I2C_ICR_STOPCF;
+
+    return data;
+}
+
+void I2C_WriteReg(uint8_t dev, uint8_t reg, uint8_t data)
+{
+    while(I2C1->ISR & I2C_ISR_BUSY);
+
+    I2C1->CR2 = (dev<<1) | (2<<16);   // 2 bytes
+    I2C1->CR2 |= I2C_CR2_AUTOEND;
+    I2C1->CR2 |= I2C_CR2_START;
+
+    while(!(I2C1->ISR & I2C_ISR_TXIS));
+    I2C1->TXDR = reg;
+
+    while(!(I2C1->ISR & I2C_ISR_TXIS));
+    I2C1->TXDR = data;
+
+    while(!(I2C1->ISR & I2C_ISR_STOPF));
+    I2C1->ICR |= I2C_ICR_STOPCF;
+}

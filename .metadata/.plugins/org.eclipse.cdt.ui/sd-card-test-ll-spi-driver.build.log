@@ -1,0 +1,10 @@
+14:30:52 **** Incremental Build of configuration Debug for project sd-card-test-ll-spi-driver ****
+make -j8 all 
+arm-none-eabi-size  sd-card-test-ll-spi-driver.elf 
+   text	   data	    bss	    dec	    hex	filename
+  28356	     48	   2784	  31188	   79d4	sd-card-test-ll-spi-driver.elf
+Finished building: default.size.stdout
+ 
+
+14:30:53 Build Finished. 0 errors, 0 warnings. (took 1s.751ms)
+

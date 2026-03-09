@@ -1,0 +1,3 @@
+../Core/Src/logger.c:11:6:Logger_Init	8	static
+../Core/Src/logger.c:23:6:Logger_LogTemperature	24	static
+../Core/Src/logger.c:38:6:Logger_PrintFile	16	static

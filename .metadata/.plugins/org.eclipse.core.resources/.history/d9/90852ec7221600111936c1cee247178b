@@ -1,0 +1,57 @@
+#include "logger.h"
+#include "ff.h"
+#include "uart.h"
+#include <stdio.h>
+#include <string.h>
+
+static FATFS fs;
+static FIL file;
+
+void Logger_Init(void)
+{
+    if(f_mount(&fs, "", 1) != FR_OK)
+    {
+        UART2_Print("Mount Failed\r\n");
+        while(1);
+    }
+
+    UART2_Print("Mount OK\r\n");
+}
+
+void Logger_LogTemperature(float temp)
+{
+    char buf[64];
+    UINT bw;
+
+    sprintf(buf, "Temp: %.2f C\r\n", temp);
+
+    if(f_open(&file, "temp.txt", FA_OPEN_APPEND | FA_WRITE) == FR_OK)
+    {
+        f_write(&file, buf, strlen(buf), &bw);
+        f_close(&file);
+    }
+}
+
+void Logger_PrintFile(void)
+{
+    char buf[64];
+    UINT br;
+
+    if(f_open(&file, "temp.txt", FA_READ) != FR_OK)
+        return;
+
+    UART2_Print("\r\n--- DATA ---\r\n");
+
+    while(1)
+    {
+        if(f_read(&file, buf, sizeof(buf)-1, &br) != FR_OK || br==0)
+            break;
+
+        buf[br] = 0;
+        UART2_Print(buf);
+    }
+
+    UART2_Print("\r\n--- END ---\r\n");
+
+    f_close(&file);
+}

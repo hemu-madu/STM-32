@@ -1,0 +1,4 @@
+../Core/Src/i2c.c:6:6:I2C1_Init	1
+../Core/Src/i2c.c:21:12:WaitFlag	3
+../Core/Src/i2c.c:32:9:I2C_ReadReg	5
+../Core/Src/i2c.c:58:6:I2C_WriteReg	4

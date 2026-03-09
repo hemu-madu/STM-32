@@ -1,0 +1,6 @@
+../Core/Src/diskio.c:11:9:disk_status	2
+../Core/Src/diskio.c:20:9:disk_initialize	2
+../Core/Src/diskio.c:37:9:disk_read	5
+../Core/Src/diskio.c:53:9:disk_write	5
+../Core/Src/diskio.c:69:9:disk_ioctl	6
+../Core/Src/diskio.c:96:7:get_fattime	1

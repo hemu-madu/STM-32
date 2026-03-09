@@ -1,0 +1,59 @@
+/*
+ * low_level_spi.c
+ *
+ *  Created on: Nov 24, 2020
+ *      Author: david
+ */
+
+#include "stm32l4xx_ll_spi.h"
+
+#include <stdint.h>
+
+static SPI_TypeDef *spi = SPI1;
+
+static void spi_transmit_receive(uint8_t *txbuf, uint8_t *rxbuf, size_t len) {
+  uint8_t ch;
+  int j = 0;
+
+  if (txbuf) {
+    ch = txbuf[0];
+  }
+  else {
+    ch = 0xff;
+  }
+  LL_SPI_TransmitData8(spi, ch);
+
+  for (int i=1; i<len; i++) {
+    while (!LL_SPI_IsActiveFlag_TXE(spi)) {}
+    if (txbuf) {
+      ch = txbuf[i];
+    }
+    else {
+      ch = 0xff;
+    }
+    LL_SPI_TransmitData8(spi, ch);
+    while (!LL_SPI_IsActiveFlag_RXNE(spi)) {}
+    char ch = LL_SPI_ReceiveData8(spi);
+    if (rxbuf) {
+      rxbuf[j++] = ch;
+    }
+  }
+
+  while (!LL_SPI_IsActiveFlag_RXNE(spi)) {}
+  ch = LL_SPI_ReceiveData8(spi);
+  if (rxbuf) {
+    rxbuf[j++] = ch;
+  }
+  while (!LL_SPI_IsActiveFlag_TXE(spi)) {}
+
+}
+
+int sd_card_spi_write(uint8_t *data, size_t len) {
+  spi_transmit_receive(data, NULL, len);
+  return 0;
+}
+
+int sd_card_spi_read(uint8_t *data, size_t len) {
+  spi_transmit_receive(NULL, data, len);
+  return 0;
+}

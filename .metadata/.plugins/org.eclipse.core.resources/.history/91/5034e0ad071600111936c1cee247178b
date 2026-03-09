@@ -1,0 +1,73 @@
+#include "serial.h"
+#include "fatfs.h"
+
+#include <stdio.h>
+
+extern serial_t *console;
+
+static char msg[128];
+
+static void scan_filesystem(void) {
+  FILINFO info;
+  DIR dir;
+  FRESULT fr;
+
+  fr = f_opendir(&dir, "/");
+  int fcount = 0;
+
+  while (fr == FR_OK) {
+    fr = f_readdir(&dir, &info);
+    if (fr == FR_OK && info.fname[0] != 0) {
+      fcount++;
+      serial_println(console, info.fname);
+    }
+    else {
+      serial_println(console, "No more files ...");
+      break;
+    }
+  }
+  f_closedir(&dir);
+
+  sprintf(msg, "Found %u files in total ...", fcount);
+  serial_println(console, msg);
+}
+
+static void do_test_read(void) {
+	char data[16];
+  FIL fp;
+  FRESULT fr = f_open(&fp, "/test1.txt", FA_READ);
+  if (fr != FR_OK) {
+    serial_println(console, "Failed to open file ...");
+    return;
+  }
+  serial_println(console, "Opened file ...");
+
+  UINT count = 0;
+  UINT total = 0;
+
+  while (1) {
+    fr = f_read(&fp, data, sizeof(data), &count);
+    if (fr != FR_OK) {
+      serial_println(console, "Failed to read file ...");
+      f_close(&fp);
+      return;
+    }
+    //sprintf(msg, "Read %u bytes ...", count);
+    //serial_println(console, msg);
+    total += count;
+    if (count < sizeof(data)) {
+      serial_println(console, "Short read count. Probably end of file ...");
+      break;
+    }
+  }
+
+  sprintf(msg, "Done. Read %u bytes in total ...", total);
+  serial_println(console, msg);
+
+  f_close(&fp);
+}
+
+void test_sd_card(void) {
+	scan_filesystem();
+	do_test_read();
+}

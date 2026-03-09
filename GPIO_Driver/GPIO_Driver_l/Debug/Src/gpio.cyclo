@@ -1,0 +1,4 @@
+../Src/gpio.c:3:6:GPIOA_Init	1
+../Src/gpio.c:22:6:GPIOA_SetPin	1
+../Src/gpio.c:27:6:GPIOA_ResetPin	1
+../Src/gpio.c:32:6:GPIOA_TogglePin	1

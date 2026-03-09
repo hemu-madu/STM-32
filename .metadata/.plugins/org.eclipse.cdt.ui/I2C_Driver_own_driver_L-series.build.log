@@ -1,0 +1,10 @@
+15:43:51 **** Build of configuration Debug for project I2C_Driver_own_driver_L-series ****
+make -j8 all 
+arm-none-eabi-size  I2C_Driver_own_driver_L-series.elf 
+   text	   data	    bss	    dec	    hex	filename
+   2292	      0	   1576	   3868	    f1c	I2C_Driver_own_driver_L-series.elf
+Finished building: default.size.stdout
+ 
+
+15:43:52 Build Finished. 0 errors, 0 warnings. (took 600ms)
+

@@ -1,0 +1,10 @@
+15:44:01 **** Build of configuration Debug for project SPI_Interrupt_1 ****
+make -j8 all 
+arm-none-eabi-size  SPI_Interrupt_1.elf 
+   text	   data	    bss	    dec	    hex	filename
+   1016	      0	   1584	   2600	    a28	SPI_Interrupt_1.elf
+Finished building: default.size.stdout
+ 
+
+15:44:02 Build Finished. 0 errors, 0 warnings. (took 450ms)
+

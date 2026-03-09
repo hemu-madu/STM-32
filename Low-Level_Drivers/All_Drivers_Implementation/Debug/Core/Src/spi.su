@@ -1,0 +1,4 @@
+../Core/Src/spi.c:4:6:SPI1_Init	16	static
+../Core/Src/spi.c:32:9:SPI1_Transfer	24	static
+../Core/Src/spi.c:51:6:SD_CS_LOW	4	static
+../Core/Src/spi.c:56:6:SD_CS_HIGH	4	static

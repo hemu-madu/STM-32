@@ -1,0 +1,10 @@
+15:44:03 **** Build of configuration Debug for project Temp_I2C ****
+make -j8 all 
+arm-none-eabi-size  Temp_I2C.elf 
+   text	   data	    bss	    dec	    hex	filename
+    864	      0	   1568	   2432	    980	Temp_I2C.elf
+Finished building: default.size.stdout
+ 
+
+15:44:04 Build Finished. 0 errors, 0 warnings. (took 609ms)
+

@@ -1,0 +1,5 @@
+1772426220175	Delete resource 'SD_Card_Logger_SPI/Core/Inc/usart.h'
+1772426223112	Delete resource 'SD_Card_Logger_SPI/Core/Src/usart.c'
+1772446606533	Delete resource 'sd-card-test-ll-spi-driver/FATFS/fatfs'
+1772446708979	Delete resource 'All_Drivers_Implementation/Core/Src/serial.c'
+1772446713215	Delete resource 'All_Drivers_Implementation/Core/Inc/serial.h'

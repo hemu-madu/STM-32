@@ -1,0 +1,10 @@
+15:44:02 **** Build of configuration Debug for project Sample App ****
+make -j8 all 
+arm-none-eabi-size  Sample\ App.elf 
+   text	   data	    bss	    dec	    hex	filename
+  17864	    104	   2040	  20008	   4e28	Sample App.elf
+Finished building: default.size.stdout
+ 
+
+15:44:03 Build Finished. 0 errors, 0 warnings. (took 1s.4ms)
+

@@ -1,0 +1,22 @@
+08:22:53 **** Incremental Build of configuration Debug for project SD_Card ****
+make -j8 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -I../FATFS/Target -I../FATFS/App -I../Middlewares/Third_Party/FatFs/src -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc "../Core/Src/sd_spi.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -I../FATFS/Target -I../FATFS/App -I../Middlewares/Third_Party/FatFs/src -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/sd_spi.d" -MT"Core/Src/sd_spi.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/sd_spi.o"
+../Core/Src/sd_spi.c: In function 'SD_Init':
+../Core/Src/sd_spi.c:165:1: error: expected declaration or statement at end of input
+  165 | }
+      | ^
+../Core/Src/sd_spi.c:167: warning: control reaches end of non-void function [-Wreturn-type]
+../Core/Src/sd_spi.c: At top level:
+../Core/Src/sd_spi.c:119:9: warning: 'SD_WriteBlock' defined but not used [-Wunused-function]
+  119 | uint8_t SD_WriteBlock(const uint8_t *buff, uint32_t sector)
+      |         ^~~~~~~~~~~~~
+../Core/Src/sd_spi.c:79:9: warning: 'SD_ReadBlock' defined but not used [-Wunused-function]
+   79 | uint8_t SD_ReadBlock(uint8_t *buff, uint32_t sector)
+      |         ^~~~~~~~~~~~
+make: *** [Core/Src/subdir.mk:37: Core/Src/sd_spi.o] Error 1
+make: *** Waiting for unfinished jobs....
+"make -j8 all" terminated with exit code 2. Build might be incomplete.
+
+08:22:56 Build Failed. 3 errors, 3 warnings. (took 3s.4ms)
+

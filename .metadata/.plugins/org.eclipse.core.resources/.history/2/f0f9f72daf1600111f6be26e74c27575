@@ -1,0 +1,99 @@
+#include "stm32l476xx.h"
+#include "rcc.h"
+#include "gpio.h"
+#include "uart.h"
+#include "spi.h"
+#include "i2c.h"
+#include "sdcard.h"
+#include "ff.h"
+#include "bme280.h"
+#include "rtc.h"
+#include <stdio.h>
+#include <string.h>
+
+/* FATFS objects */
+FATFS fs;
+FIL file;
+UINT bw, br;
+
+/* Buffer for reading file */
+char buffer[256];
+
+/* Simple delay */
+void delay_ms(uint32_t ms)
+{
+    for(uint32_t i=0;i<ms*4000;i++);
+}
+
+int main(void)
+{
+    /* ===== Peripheral Init ===== */
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+    SPI1_Init();
+    I2C1_Init();
+    RTC_Init();
+    BME280_Init();
+
+    UART2_Print("\r\nSystem Ready\r\n");
+
+    /* ===== Mount SD Card ===== */
+    if(f_mount(&fs, "", 1) != FR_OK)
+    {
+        UART2_Print("SD Mount Failed!\r\n");
+        while(1);
+    }
+
+    UART2_Print("SD Mounted Successfully\r\n");
+
+    while(1)
+    {
+        /* ===== Read Temperature ===== */
+        float temp = BME280_ReadTemperature();
+
+        char logline[32];
+        sprintf(logline, "Temp: %.2f C\r\n", temp);
+
+        /* ===== Write Only Temperature To File ===== */
+        if(f_open(&file, "temperature_logs.txt", FA_OPEN_APPEND | FA_WRITE) == FR_OK)
+        {
+            f_write(&file, logline, strlen(logline), &bw);
+            f_close(&file);
+        }
+
+        UART2_Print("Logged: ");
+        UART2_Print(logline);
+
+        /* ===== If Button Pressed -> Print File ===== */
+        if(Button_Pressed())
+        {
+            delay_ms(200);  // debounce
+
+            if(Button_Pressed())
+            {
+                UART2_Print("\r\n---- FILE CONTENT ----\r\n");
+
+                if(f_open(&file, "temperature_logs.txt", FA_READ) == FR_OK)
+                {
+                    while(1)
+                    {
+                        if(f_read(&file, buffer, sizeof(buffer)-1, &br) != FR_OK || br == 0)
+                            break;
+
+                        buffer[br] = 0;
+                        UART2_Print(buffer);
+                    }
+                    f_close(&file);
+                }
+
+                UART2_Print("\r\n----------------------\r\n");
+
+                /* Wait until button release */
+                while(Button_Pressed());
+            }
+        }
+
+        delay_ms(5000);  // Log every 5 seconds
+    }
+}

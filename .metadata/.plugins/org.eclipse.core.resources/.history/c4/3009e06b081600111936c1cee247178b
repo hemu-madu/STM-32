@@ -1,0 +1,99 @@
+#include "serial.h"
+#include "fatfs.h"
+#include <stdio.h>
+#include <string.h>
+
+extern serial_t *console;
+
+static char msg[128];
+
+static char first_file[64];   // store first filename found
+
+static void scan_filesystem(void) {
+    FILINFO info;
+    DIR dir;
+    FRESULT fr;
+
+    first_file[0] = 0;   // clear
+
+    fr = f_opendir(&dir, "/");
+    if (fr != FR_OK) {
+        serial_println(console, "Failed to open root directory");
+        return;
+    }
+
+    int fcount = 0;
+
+    while (1) {
+        fr = f_readdir(&dir, &info);
+
+        if (fr != FR_OK || info.fname[0] == 0) {
+            serial_println(console, "No more files ...");
+            break;
+        }
+
+        fcount++;
+
+        sprintf(msg, "File: %s", info.fname);
+        serial_println(console, msg);
+
+        // Save first file name
+        if (fcount == 1) {
+            strcpy(first_file, info.fname);
+        }
+    }
+
+    f_closedir(&dir);
+
+    sprintf(msg, "Found %d files in total ...", fcount);
+    serial_println(console, msg);
+}
+
+static void do_test_read(void) {
+    if (first_file[0] == 0) {
+        serial_println(console, "No file to open");
+        return;
+    }
+
+    FIL fp;
+    char data[32];
+    UINT count;
+    UINT total = 0;
+
+    sprintf(msg, "Opening: %s", first_file);
+    serial_println(console, msg);
+
+    FRESULT fr = f_open(&fp, first_file, FA_READ);
+
+    if (fr != FR_OK) {
+        serial_println(console, "Failed to open file ...");
+        return;
+    }
+
+    serial_println(console, "Opened file successfully");
+
+    while (1) {
+        fr = f_read(&fp, data, sizeof(data), &count);
+
+        if (fr != FR_OK) {
+            serial_println(console, "Read error");
+            break;
+        }
+
+        total += count;
+
+        if (count < sizeof(data)) {
+            break;  // End of file
+        }
+    }
+
+    sprintf(msg, "Done. Read %u bytes in total ...", total);
+    serial_println(console, msg);
+
+    f_close(&fp);
+}
+
+void test_sd_card(void) {
+    scan_filesystem();
+    do_test_read();
+}

@@ -1,0 +1,96 @@
+#include "stm32l476xx.h"
+#include "spi.h"
+#include "uart.h"
+#include "sdcard.h"
+#include "ff.h"
+#include "bme280.h"
+#include "rtc.h"
+#include "gpio.h"
+#include "rcc.h"
+#include <stdio.h>
+#include <string.h>
+
+FATFS fs;
+FIL file;
+UINT bw, br;
+
+char buffer[256];
+
+void delay_ms(uint32_t ms)
+{
+    for(uint32_t i = 0; i < ms * 4000; i++);
+}
+
+int main(void)
+{
+    RCC_Init();
+    GPIO_Init();
+    UART2_Init();
+    SPI1_Init();
+    RTC_Init();
+    BME280_Init();
+
+    UART2_Print("\r\n==== TEMPERATURE LOGGER STARTED ====\r\n");
+
+    if(f_mount(&fs, "", 1) != FR_OK)
+    {
+        UART2_Print("SD Mount Failed!\r\n");
+        while(1);
+    }
+
+    while(1)
+    {
+        float temperature = BME280_ReadTemperature();
+
+        uint8_t hour, min, sec;
+        uint8_t date, month, year;
+
+        RTC_Get_Time(&hour, &min, &sec);
+        RTC_Get_Date(&date, &month, &year);
+
+        char logline[128];
+
+        sprintf(logline,
+                "%02d-%02d-20%02d %02d:%02d:%02d Temp: %.2f C\r\n",
+                date, month, year,
+                hour, min, sec,
+                temperature);
+
+        if(f_open(&file, "temperature_logs.txt", FA_OPEN_APPEND | FA_WRITE) == FR_OK)
+        {
+            f_write(&file, logline, strlen(logline), &bw);
+            f_close(&file);
+        }
+
+        /* Use existing Button_Pressed() from gpio.c */
+        if(Button_Pressed())
+        {
+            delay_ms(200);
+
+            if(Button_Pressed())
+            {
+                UART2_Print("\r\n----- FILE DATA -----\r\n");
+
+                if(f_open(&file, "temperature_logs.txt", FA_READ) == FR_OK)
+                {
+                    while(1)
+                    {
+                        if(f_read(&file, buffer, sizeof(buffer)-1, &br) != FR_OK || br == 0)
+                            break;
+
+                        buffer[br] = 0;
+                        UART2_Print(buffer);
+                    }
+
+                    f_close(&file);
+                }
+
+                UART2_Print("\r\n---------------------\r\n");
+
+                while(Button_Pressed());
+            }
+        }
+
+        delay_ms(5000);
+    }
+}

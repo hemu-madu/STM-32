@@ -1,0 +1,2 @@
+../Core/Src/tmp007.c:4:10:TMP007_ReadTempRaw	8	static
+../Core/Src/tmp007.c:9:7:TMP007_ReadTempC	16	static

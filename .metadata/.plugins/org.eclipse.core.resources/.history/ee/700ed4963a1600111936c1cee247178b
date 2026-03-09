@@ -1,0 +1,36 @@
+#include "stm32l476xx.h"
+
+void delay(void)
+{
+    for(volatile int i=0; i<200000; i++);
+}
+
+int main(void)
+{
+    /* Enable clocks */
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+    RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+
+    /* PA5 = LD2 LED output */
+    GPIOA->MODER &= ~(3 << (5*2));
+    GPIOA->MODER |=  (1 << (5*2));   // Output mode
+
+    /* PC13 = USER button input */
+    GPIOC->MODER &= ~(3 << (13*2));  // Input mode
+    GPIOC->PUPDR &= ~(3 << (13*2));  // No pull
+
+    while(1)
+    {
+        /* ACTIVE LOW button */
+        if((GPIOC->IDR & (1 << 13)) == 0)
+        {
+            GPIOA->ODR |= (1 << 5);   // LED ON
+        }
+        else
+        {
+            GPIOA->ODR &= ~(1 << 5);  // LED OFF
+        }
+
+        delay();
+    }
+}

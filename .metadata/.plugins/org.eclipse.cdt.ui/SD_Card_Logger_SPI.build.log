@@ -1,0 +1,10 @@
+11:19:30 **** Incremental Build of configuration Debug for project SD_Card_Logger_SPI ****
+make -j8 all 
+arm-none-eabi-size  SD_Card_Logger_SPI.elf 
+   text	   data	    bss	    dec	    hex	filename
+  33556	    124	  11012	  44692	   ae94	SD_Card_Logger_SPI.elf
+Finished building: default.size.stdout
+ 
+
+11:19:32 Build Finished. 0 errors, 0 warnings. (took 1s.345ms)
+

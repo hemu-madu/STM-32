@@ -1,1 +1,7 @@
-SysTick->CTRL
+SystemCoreClock
+live_temp
+sd_write_status
+sd_read_status
+button_state
+sd_buffer[0]
+read_buffer[0]

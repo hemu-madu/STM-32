@@ -1,0 +1,6 @@
+../Core/Src/rtc.c:3:16:bcd2dec	16	static
+../Core/Src/rtc.c:8:6:RTC_Init	4	static
+../Core/Src/rtc.c:37:6:RTC_Get_Time	32	static
+../Core/Src/rtc.c:46:6:RTC_Get_Date	32	static
+../Core/Src/rtc.c:55:16:dec2bcd	16	static
+../Core/Src/rtc.c:60:6:RTC_SetDateTime	24	static
