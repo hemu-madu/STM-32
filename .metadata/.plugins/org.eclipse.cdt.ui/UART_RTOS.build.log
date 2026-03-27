@@ -1,0 +1,10 @@
+11:13:46 **** Incremental Build of configuration Debug for project UART_RTOS ****
+make -j8 all 
+arm-none-eabi-size  UART_RTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  17212	     96	  18280	  35588	   8b04	UART_RTOS.elf
+Finished building: default.size.stdout
+ 
+
+11:13:47 Build Finished. 0 errors, 0 warnings. (took 1s.510ms)
+

@@ -1,0 +1,63 @@
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+#include <stdio.h>
+
+/* Use semaphore from main.c */
+extern osSemaphoreId myCountingSemHandle;
+
+/* ================= PRODUCER TASK ================= */
+void ProducerTask_func(void const * argument)
+{
+  uint8_t count = 0;
+
+  printf("Producer started\r\n");
+
+  for(;;)
+  {
+    if(osSemaphoreRelease(myCountingSemHandle) == osOK)
+    {
+      count++;
+      printf("[Producer] Produced %d\r\n", count);
+    }
+    else
+    {
+      printf("[Producer] Semaphore FULL\r\n");
+    }
+
+    osDelay(1000);  // 1 sec delay
+  }
+}
+
+/* ================= CONSUMER TASK ================= */
+void ConsumerTask_func(void const * argument)
+{
+  uint8_t consumed = 0;
+
+  printf("Consumer started\r\n");
+
+  for(;;)
+  {
+    if(osSemaphoreWait(myCountingSemHandle, osWaitForever) == osOK)
+    {
+      consumed++;
+      printf("[Consumer] Consumed %d\r\n", consumed);
+    }
+
+    osDelay(2000);  // slower consumer
+  }
+}
+
+/* ================= IDLE TASK MEMORY ================= */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t **ppxIdleTaskStackBuffer,
+                                   uint32_t *pulIdleTaskStackSize )
+{
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = xIdleStack;
+  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}

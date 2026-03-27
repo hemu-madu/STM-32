@@ -1,0 +1,70 @@
+#include "main.h"
+#include "cmsis_os.h"
+
+/* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
+
+osThreadId defaultTaskHandle;
+osThreadId ProducerTaskHandle;
+osThreadId ConsumerTaskHandle;
+
+/* ✅ Semaphore Handle (DEFINED here) */
+osSemaphoreId myCountingSemHandle;
+
+/* Function prototypes */
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+void StartDefaultTask(void const * argument);
+
+/* Tasks are declared ONLY, not defined here */
+void ProducerTask_func(void const * argument);
+void ConsumerTask_func(void const * argument);
+
+/* UART printf support */
+#ifdef __GNUC__
+int __io_putchar(int ch)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+  return ch;
+}
+#endif
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+
+  /* ================= SEMAPHORE ================= */
+  osSemaphoreDef(myCountingSem, 5);   // max count = 5
+  myCountingSemHandle = osSemaphoreCreate(osSemaphore(myCountingSem), 0);
+
+  /* ================= TASKS ================= */
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+  osThreadDef(ProducerTask, ProducerTask_func, osPriorityNormal, 0, 128);
+  ProducerTaskHandle = osThreadCreate(osThread(ProducerTask), NULL);
+
+  osThreadDef(ConsumerTask, ConsumerTask_func, osPriorityNormal, 0, 128);
+  ConsumerTaskHandle = osThreadCreate(osThread(ConsumerTask), NULL);
+
+  /* Start scheduler */
+  osKernelStart();
+
+  while (1) {}
+}
+
+/* Default Task */
+void StartDefaultTask(void const * argument)
+{
+  for(;;)
+  {
+    osDelay(1000);
+  }
+}
+
+/* Remaining HAL init functions unchanged */

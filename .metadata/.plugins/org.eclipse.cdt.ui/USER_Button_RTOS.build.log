@@ -1,0 +1,10 @@
+11:13:51 **** Incremental Build of configuration Debug for project USER_Button_RTOS ****
+make -j8 all 
+arm-none-eabi-size  USER_Button_RTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  21704	     96	   6088	  27888	   6cf0	USER_Button_RTOS.elf
+Finished building: default.size.stdout
+ 
+
+11:13:52 Build Finished. 0 errors, 0 warnings. (took 1s.283ms)
+

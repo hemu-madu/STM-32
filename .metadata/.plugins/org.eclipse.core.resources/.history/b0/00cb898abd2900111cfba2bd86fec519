@@ -1,0 +1,64 @@
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+#include <stdio.h>
+
+/* Use semaphore from main.c */
+extern osSemaphoreId myCountingSemHandle;
+
+/* ================= PRODUCER TASK ================= */
+void ProducerTask_func(void const * argument)
+{
+  uint8_t count = 0;
+  char msg[50];
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)"Producer started\r\n", 18, HAL_MAX_DELAY);
+
+  for(;;)
+  {
+    if(osSemaphoreRelease(myCountingSemHandle) == osOK)
+    {
+      count++;
+
+      sprintf(msg, "[Producer] Produced %d\r\n", count);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+    }
+
+    osDelay(1000);
+  }
+}
+/* ================= CONSUMER TASK ================= */
+void ConsumerTask_func(void const * argument)
+{
+  uint8_t consumed = 0;
+  char msg[50];
+
+  HAL_UART_Transmit(&huart2, (uint8_t*)"Consumer started\r\n", 18, HAL_MAX_DELAY);
+
+  for(;;)
+  {
+    if(osSemaphoreWait(myCountingSemHandle, osWaitForever) == osOK)
+    {
+      consumed++;
+
+      sprintf(msg, "[Consumer] Consumed %d\r\n", consumed);
+      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+    }
+
+    osDelay(2000);
+  }
+}
+
+/* ================= IDLE TASK MEMORY ================= */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t **ppxIdleTaskStackBuffer,
+                                   uint32_t *pulIdleTaskStackSize )
+{
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = xIdleStack;
+  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}

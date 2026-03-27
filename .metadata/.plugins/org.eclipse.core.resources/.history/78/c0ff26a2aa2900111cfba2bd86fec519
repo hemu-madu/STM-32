@@ -1,0 +1,116 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * File Name          : freertos.c
+  * Description        : Code for freertos applications
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include <stdio.h>
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN Variables */
+extern osSemaphoreId myCountingSemHandle;
+/* USER CODE END Variables */
+
+/* Producer Task: signals (gives) the semaphore */
+void ProducerTask_func(void const * argument)
+{
+  uint8_t count = 0;
+
+  for(;;)
+  {
+    /* Simulate producing an item */
+    osDelay(1000);  // produce every 1 second
+
+    if(osSemaphoreRelease(myCountingSemHandle) == osOK)
+    {
+      count++;
+      printf("[Producer] Item produced. Semaphore count signal sent. Total: %d\r\n", count);
+    }
+    else
+    {
+      printf("[Producer] Semaphore full! Cannot release.\r\n");
+    }
+  }
+}
+
+/* Consumer Task: waits (takes) the semaphore */
+void ConsumerTask_func(void const * argument)
+{
+  uint8_t consumed = 0;
+
+  for(;;)
+  {
+    /* Wait indefinitely for a semaphore token */
+    if(osSemaphoreWait(myCountingSemHandle, osWaitForever) == osOK)
+    {
+      consumed++;
+      printf("[Consumer] Item consumed. Count: %d\r\n", consumed);
+
+      /* Simulate processing time */
+      osDelay(2000);
+    }
+  }
+}
+
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN FunctionPrototypes */
+void ProducerTask_func(void const * argument);
+void ConsumerTask_func(void const * argument);
+/* USER CODE END FunctionPrototypes */
+
+/* GetIdleTaskMemory prototype (linked to static allocation support) */
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
+
+/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+{
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = &xIdleStack[0];
+  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+  /* place for user code */
+}
+/* USER CODE END GET_IDLE_TASK_MEMORY */
+
+/* Private application code --------------------------------------------------*/
+/* USER CODE BEGIN Application */
+
+/* USER CODE END Application */

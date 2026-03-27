@@ -1,0 +1,78 @@
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+#include <string.h>
+#include <stdio.h>
+
+extern UART_HandleTypeDef huart2;
+extern osSemaphoreId      myCountingSemHandle;
+extern osMutexId          uartMutexHandle;
+
+/* Safe UART print — mutex protected */
+static void uart_print(const char *msg)
+{
+  osMutexWait(uartMutexHandle, osWaitForever);
+  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+  osMutexRelease(uartMutexHandle);
+}
+
+/* ================= PRODUCER TASK ================= */
+void ProducerTask_func(void const * argument)
+{
+  uint8_t count = 0;
+  char msg[60];
+
+  osDelay(100);  /* small delay so startup messages don't collide */
+  uart_print("[Producer] Task started\r\n");
+
+  for(;;)
+  {
+    osDelay(1000);
+
+    if(osSemaphoreRelease(myCountingSemHandle) == osOK)
+    {
+      count++;
+      snprintf(msg, sizeof(msg), "[Producer] Produced item %d\r\n", count);
+      uart_print(msg);
+    }
+    else
+    {
+      uart_print("[Producer] Semaphore full! Waiting...\r\n");
+    }
+  }
+}
+
+/* ================= CONSUMER TASK ================= */
+void ConsumerTask_func(void const * argument)
+{
+  uint8_t consumed = 0;
+  char msg[60];
+
+  osDelay(200);  /* slightly longer delay than producer */
+  uart_print("[Consumer] Task started\r\n");
+
+  for(;;)
+  {
+    if(osSemaphoreWait(myCountingSemHandle, osWaitForever) == osOK)
+    {
+      consumed++;
+      snprintf(msg, sizeof(msg), "[Consumer] Consumed item %d\r\n", consumed);
+      uart_print(msg);
+      osDelay(2000);
+    }
+  }
+}
+
+/* ================= IDLE TASK MEMORY ================= */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t  xIdleStack[configMINIMAL_STACK_SIZE];
+
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t  **ppxIdleTaskStackBuffer,
+                                   uint32_t      *pulIdleTaskStackSize)
+{
+  *ppxIdleTaskTCBBuffer   = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = xIdleStack;
+  *pulIdleTaskStackSize   = configMINIMAL_STACK_SIZE;
+}

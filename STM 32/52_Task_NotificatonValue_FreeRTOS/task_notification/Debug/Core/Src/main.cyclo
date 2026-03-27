@@ -1,0 +1,8 @@
+../Core/Src/main.c:72:5:main	1
+../Core/Src/main.c:150:6:SystemClock_Config	4
+../Core/Src/main.c:200:13:MX_USART2_UART_Init	2
+../Core/Src/main.c:235:13:MX_GPIO_Init	1
+../Core/Src/main.c:270:6:SenderTask	1
+../Core/Src/main.c:280:6:ReceiverTask	1
+../Core/Src/main.c:300:6:StartDefaultTask	1
+../Core/Src/main.c:315:6:Error_Handler	1

@@ -1,0 +1,10 @@
+11:51:58 **** Incremental Build of configuration Debug for project Binary_Semaphore_FreeRTOS ****
+make -j8 all 
+arm-none-eabi-size  Binary_Semaphore_FreeRTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  18364	     16	  17960	  36340	   8df4	Binary_Semaphore_FreeRTOS.elf
+Finished building: default.size.stdout
+ 
+
+11:51:59 Build Finished. 0 errors, 0 warnings. (took 1s.141ms)
+
