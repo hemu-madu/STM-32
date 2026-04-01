@@ -1,0 +1,10 @@
+16:48:23 **** Incremental Build of configuration Debug for project Short_Range_wireless ****
+make -j8 all 
+arm-none-eabi-size  Short_Range_wireless.elf 
+   text	   data	    bss	    dec	    hex	filename
+  15188	     12	   1948	  17148	   42fc	Short_Range_wireless.elf
+Finished building: default.size.stdout
+ 
+
+16:48:23 Build Finished. 0 errors, 0 warnings. (took 745ms)
+

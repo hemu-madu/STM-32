@@ -1,0 +1,170 @@
+#include "main.h"
+#include <string.h>
+
+/* Private variables */
+UART_HandleTypeDef huart1; // ESP8266
+UART_HandleTypeDef huart2; // PC (ST-Link)
+
+uint8_t rx_data;
+uint8_t pc_rx;
+char buffer[100];
+int rx_index = 0;
+
+/* Function prototypes */
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_USART1_UART_Init(void);
+
+/* ================= COMMAND PROCESS ================= */
+void process_command(char *cmd)
+{
+    if(strstr(cmd, "LED ON"))
+    {
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    }
+    else if(strstr(cmd, "LED OFF"))
+    {
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    }
+
+    // Debug print to PC
+    HAL_UART_Transmit(&huart2, (uint8_t*)cmd, strlen(cmd), 100);
+}
+
+/* ================= MAIN ================= */
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+    MX_USART2_UART_Init();
+    MX_USART1_UART_Init();
+
+    // Start receiving from ESP
+    HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+
+    while (1)
+    {
+        // Read from PC → send to ESP
+        if(HAL_UART_Receive(&huart2, &pc_rx, 1, 10) == HAL_OK)
+        {
+            HAL_UART_Transmit(&huart1, &pc_rx, 1, 100);
+        }
+    }
+}
+
+/* ================= UART CALLBACK ================= */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART1)
+    {
+        // Send ESP response to PC
+        HAL_UART_Transmit(&huart2, &rx_data, 1, 100);
+
+        if(rx_data == '\n')
+        {
+            buffer[rx_index] = '\0';
+            process_command(buffer);
+            rx_index = 0;
+        }
+        else
+        {
+            if(rx_index < sizeof(buffer)-1)
+            {
+                buffer[rx_index++] = rx_data;
+            }
+        }
+
+        HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+    }
+}
+
+/* ================= GPIO ================= */
+static void MX_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+    GPIO_InitStruct.Pin = LD2_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+}
+
+/* ================= USART1 (ESP) ================= */
+static void MX_USART1_UART_Init(void)
+{
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* ================= USART2 (PC) ================= */
+static void MX_USART2_UART_Init(void)
+{
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = 115200;
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    if (HAL_UART_Init(&huart2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* ================= CLOCK ================= */
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM = 1;
+    RCC_OscInitStruct.PLL.PLLN = 10;
+    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                 RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+
+    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+}
+
+/* ================= ERROR ================= */
+void Error_Handler(void)
+{
+    __disable_irq();
+    while (1)
+    {
+    }
+}
